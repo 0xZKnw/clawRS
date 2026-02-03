@@ -7,9 +7,23 @@ use crate::ui::components::loading::Spinner;
 pub fn ModelPicker() -> Element {
     let app_state = use_context::<AppState>();
     let models_directory = app_state.settings.read().models_directory.clone();
-    let models = use_signal(|| scan_models_directory(&models_directory).unwrap_or_default());
-
-    let mut selected_model_path = use_signal(|| None);
+    
+    let mut models = use_signal(Vec::new);
+    let mut selected_model_path = use_signal(|| None::<String>);
+    
+    let models_directory_clone = models_directory.clone();
+    use_effect(move || {
+        let found_models = scan_models_directory(&models_directory_clone).unwrap_or_default();
+        // Pre-select first model if available and nothing selected yet
+        if selected_model_path.read().is_none() {
+            if let Some(first_model) = found_models.first() {
+                let path_str = first_model.path.to_string_lossy().to_string();
+                tracing::debug!("Pre-selecting first model: {}", path_str);
+                selected_model_path.set(Some(path_str));
+            }
+        }
+        models.set(found_models);
+    });
 
     // Handlers
     let app_state_for_load = app_state.clone();
@@ -62,14 +76,14 @@ pub fn ModelPicker() -> Element {
 
     rsx! {
         div {
-            class: "flex flex-col p-4 border-b border-[var(--border-subtle)] gap-3 bg-[var(--bg-sidebar)]",
+            class: "flex flex-col p-4 border-b border-[var(--border-subtle)] gap-4 bg-[var(--bg-sidebar)]",
             
             // Header with Refresh
             div {
                 class: "flex items-center justify-between",
                 span {
                     class: "text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-bold select-none",
-                    "Model Selection"
+                    "Active Model"
                 }
                 button {
                     onclick: handle_refresh,
@@ -93,19 +107,19 @@ pub fn ModelPicker() -> Element {
             // Main Content Area
             if models.read().is_empty() {
                 div {
-                    class: "flex flex-col items-center justify-center p-4 border border-dashed border-[var(--border-subtle)] rounded-md gap-2",
-                    span { class: "text-sm text-[var(--text-secondary)]", "No models found" }
+                    class: "flex flex-col items-center justify-center p-4 border border-dashed border-[var(--border-subtle)] rounded-lg gap-2 bg-[var(--bg-subtle)]",
+                    span { class: "text-sm text-[var(--text-secondary)] font-medium", "No models found" }
                     span { class: "text-[10px] text-[var(--text-tertiary)] text-center", "Place .gguf files in /models" }
                 }
             } else {
                 div {
-                    class: "flex flex-col gap-2",
+                    class: "flex flex-col gap-3",
                     
                     // Model Selector
                     div {
                         class: "relative group",
                         select {
-                            class: "w-full appearance-none bg-[var(--bg-input)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-sm rounded-md py-2 pl-3 pr-8 focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all font-mono",
+                            class: "w-full appearance-none bg-[var(--bg-input)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-sm rounded-lg py-2.5 pl-3 pr-8 focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all font-medium truncate disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer hover:border-[var(--border-hover)]",
                             disabled: matches!(*app_state.model_state.read(), ModelState::Loading | ModelState::Loaded(_)),
                             onchange: move |evt| selected_model_path.set(Some(evt.value())),
                             value: selected_model_path.read().clone().unwrap_or_default(),
@@ -119,7 +133,7 @@ pub fn ModelPicker() -> Element {
                         }
                         // Custom Chevron
                         div {
-                            class: "absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]",
+                            class: "absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]",
                             svg {
                                 class: "w-4 h-4",
                                 view_box: "0 0 24 24",
@@ -133,13 +147,13 @@ pub fn ModelPicker() -> Element {
                         }
                     }
 
-                    // Metadata display (Size)
+                    // Metadata display (Size) - cleaner look
                     if let Some(path) = selected_model_path.read().as_ref() {
                         if let Some(model) = models.read().iter().find(|m| m.path.to_string_lossy() == *path) {
                             div {
                                 class: "flex justify-end",
                                 span {
-                                    class: "text-[10px] text-[var(--text-tertiary)] font-mono",
+                                    class: "px-1.5 py-0.5 rounded text-[10px] font-mono bg-[var(--bg-subtle)] text-[var(--text-tertiary)]",
                                     "{model.size_string()}"
                                 }
                             }
@@ -151,7 +165,7 @@ pub fn ModelPicker() -> Element {
                         ModelState::NotLoaded => rsx! {
                             button {
                                 onclick: handle_load,
-                                class: "w-full flex items-center justify-center gap-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium py-2 rounded-md transition-all active:scale-[0.98]",
+                                class: "w-full flex items-center justify-center gap-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] text-[var(--text-secondary)] text-sm font-medium py-2.5 rounded-lg transition-all active:scale-[0.98] shadow-sm",
                                 svg {
                                     class: "w-4 h-4",
                                     view_box: "0 0 24 24",
@@ -168,22 +182,22 @@ pub fn ModelPicker() -> Element {
                         },
                         ModelState::Loading => rsx! {
                             div {
-                                class: "w-full flex items-center justify-center gap-3 bg-[var(--bg-subtle)] border border-[var(--border-subtle)] py-2 rounded-md",
+                                class: "w-full flex items-center justify-center gap-3 bg-[var(--bg-subtle)] border border-[var(--border-subtle)] py-2.5 rounded-lg",
                                 Spinner { size: 16 }
-                                span { class: "text-sm text-[var(--text-secondary)]", "Loading..." }
+                                span { class: "text-xs font-medium text-[var(--text-secondary)]", "Loading into memory..." }
                             }
                         },
                         ModelState::Loaded(_) => rsx! {
                             div {
                                 class: "flex items-center gap-2",
                                 div {
-                                    class: "flex-1 flex items-center gap-2 px-3 py-2 bg-[var(--bg-success-subtle)] border border-[var(--border-success-subtle)] rounded-md",
-                                    div { class: "w-2 h-2 rounded-full bg-[var(--success)] animate-pulse" }
-                                    span { class: "text-xs font-medium text-[var(--text-success)]", "Active" }
+                                    class: "flex-1 flex items-center gap-2 px-3 py-2.5 bg-[var(--bg-success-subtle)] border border-[var(--border-success-subtle)] rounded-lg",
+                                    div { class: "w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.4)]" }
+                                    span { class: "text-xs font-medium text-[var(--text-success)]", "Ready" }
                                 }
                                 button {
                                     onclick: handle_unload,
-                                    class: "px-3 py-2 text-sm text-[var(--text-secondary)] border border-[var(--border-subtle)] rounded-md hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors",
+                                    class: "px-3 py-2.5 text-sm text-[var(--text-secondary)] border border-[var(--border-subtle)] rounded-lg hover:bg-[var(--bg-error-subtle)] hover:border-[var(--border-error-subtle)] hover:text-[var(--text-error)] transition-colors",
                                     title: "Unload Model",
                                     svg {
                                         class: "w-4 h-4",
@@ -201,7 +215,7 @@ pub fn ModelPicker() -> Element {
                         },
                         ModelState::Error(ref msg) => rsx! {
                             div {
-                                class: "w-full p-2 bg-[var(--bg-error-subtle)] border border-[var(--border-error-subtle)] rounded-md text-xs text-[var(--text-error)]",
+                                class: "w-full p-2 bg-[var(--bg-error-subtle)] border border-[var(--border-error-subtle)] rounded-lg text-xs text-[var(--text-error)]",
                                 "{msg}"
                             }
                         }

@@ -8,17 +8,19 @@ use crate::storage::conversations::{
 #[component]
 pub fn ConversationList() -> Element {
     let app_state = use_context::<AppState>();
-    let mut conversations_signal = app_state.conversations.clone();
 
-    use_effect(move || match list_conversations() {
-        Ok(conversations) => conversations_signal.set(conversations),
-        Err(e) => tracing::error!("Failed to load conversations: {}", e),
-    });
+    {
+        let mut app_state = app_state.clone();
+        use_effect(move || match list_conversations() {
+            Ok(conversations) => app_state.conversations.set(conversations),
+            Err(e) => tracing::error!("Failed to load conversations: {}", e),
+        });
+    }
 
-    let handle_new = {
+    let _handle_new = {
         let mut conversations_signal = app_state.conversations.clone();
         let mut current_conversation_signal = app_state.current_conversation.clone();
-        move |_| {
+        move |_: ()| {
             let conversation = Conversation::new(None);
             if let Err(e) = save_conversation(&conversation) {
                 tracing::error!("Failed to save conversation: {}", e);
@@ -43,42 +45,30 @@ pub fn ConversationList() -> Element {
             class: "flex-1 overflow-y-auto px-2 py-2 space-y-1",
             style: "scrollbar-width: thin;",
 
-            button {
-                onclick: handle_new,
-                class: "group flex w-full items-center gap-3 px-3 py-3 text-sm rounded-md transition-colors duration-200 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]",
-                div {
-                    class: "shrink-0",
-                    svg {
-                        width: "16",
-                        height: "16",
-                        view_box: "0 0 24 24",
-                        fill: "none",
-                        stroke: "currentColor",
-                        stroke_width: "2",
-                        stroke_linecap: "round",
-                        stroke_linejoin: "round",
-                        path { d: "M12 5v14M5 12h14" }
-                    }
-                }
-                span { class: "truncate", "New Conversation" }
-            }
-
             if conversations.is_empty() {
                 div {
-                    class: "px-3 py-4 text-xs text-[var(--text-tertiary)]",
-                    "No conversations"
+                    class: "flex flex-col items-center justify-center py-8 text-[var(--text-tertiary)] gap-2",
+                    svg { width: "24", height: "24", view_box: "0 0 24 24", fill: "none", stroke: "currentColor", stroke_width: "1.5", stroke_dasharray: "4 4", circle { cx: "12", cy: "12", r: "10" } }
+                    span { class: "text-xs font-medium", "No recent chats" }
                 }
             } else {
+                div {
+                    class: "text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-bold px-3 py-2 select-none",
+                    "Recent"
+                }
+
                 {conversations.into_iter().map(|conversation| {
                     let is_selected = selected_id
                         .as_ref()
                         .map(|id| id == &conversation.id)
                         .unwrap_or(false);
+
                     let row_class = if is_selected {
-                        "group flex items-center gap-3 px-3 py-3 text-sm rounded-md cursor-pointer transition-colors duration-200 bg-[var(--bg-hover)] text-[var(--text-primary)]"
+                        "group flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg cursor-pointer transition-all duration-200 bg-[var(--bg-active)] text-[var(--text-primary)] font-medium shadow-sm"
                     } else {
-                        "group flex items-center gap-3 px-3 py-3 text-sm rounded-md cursor-pointer transition-colors duration-200 hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        "group flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg cursor-pointer transition-all duration-200 hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     };
+
                     let conversation_for_select = conversation.clone();
                     let conversation_id = conversation.id.clone();
                     let mut current_conversation_signal = app_state.current_conversation.clone();
@@ -87,7 +77,7 @@ pub fn ConversationList() -> Element {
                     rsx! {
                         div {
                             key: "{conversation.id}",
-                            class: "group relative",
+                            class: "relative px-1",
                             onclick: move |_| {
                                 current_conversation_signal.set(Some(conversation_for_select.clone()));
                             },
@@ -96,7 +86,7 @@ pub fn ConversationList() -> Element {
                                 class: row_class,
                                 // Icon
                                 div {
-                                    class: "shrink-0",
+                                    class: "shrink-0 " .to_string() + if is_selected { "text-[var(--accent-primary)]" } else { "text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]" },
                                     svg {
                                         width: "16",
                                         height: "16",
@@ -117,7 +107,8 @@ pub fn ConversationList() -> Element {
                                 }
 
                                 button {
-                                    class: "opacity-0 group-hover:opacity-100 transition-opacity text-[var(--text-tertiary)] hover:text-[var(--text-primary)]",
+                                    class: "opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-[var(--bg-active)] text-[var(--text-tertiary)] hover:text-[var(--text-error)]",
+                                    title: "Delete conversation",
                                     onclick: move |evt| {
                                         evt.stop_propagation();
                                         if let Err(e) = delete_conversation(&conversation_id) {
@@ -144,11 +135,8 @@ pub fn ConversationList() -> Element {
                                         stroke_width: "2",
                                         stroke_linecap: "round",
                                         stroke_linejoin: "round",
-                                        path { d: "M3 6h18" }
-                                        path { d: "M8 6v12" }
-                                        path { d: "M16 6v12" }
-                                        path { d: "M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" }
-                                        path { d: "M10 6V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2" }
+                                        line { x1: "18", y1: "6", x2: "6", y2: "18" }
+                                        line { x1: "6", y1: "6", x2: "18", y2: "18" }
                                     }
                                 }
                             }

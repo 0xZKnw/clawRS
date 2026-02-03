@@ -41,7 +41,7 @@ impl Default for AppSettings {
             max_tokens: 2048,
             context_size: 4096,
             system_prompt: "You are a helpful AI assistant.".to_string(),
-            gpu_layers: 0,
+            gpu_layers: 99, // Offload all layers to GPU by default
             models_directory: get_data_dir()
                 .ok()
                 .map(|d| d.join("models"))

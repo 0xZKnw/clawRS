@@ -1,32 +1,56 @@
 pub mod conversation_list;
 pub mod model_picker;
 
+use crate::app::AppState;
+use crate::storage::conversations::{list_conversations, save_conversation, Conversation};
 use crate::ui::sidebar::conversation_list::ConversationList;
 use crate::ui::sidebar::model_picker::ModelPicker;
 use dioxus::prelude::*;
 
 #[component]
-pub fn Sidebar() -> Element {
+pub fn Sidebar(on_settings_click: EventHandler<MouseEvent>, on_new_chat: EventHandler<()>) -> Element {
+    let app_state = use_context::<AppState>();
+    tracing::debug!("Sidebar rendered");
+
+    let handle_new = {
+        let mut conversations_signal = app_state.conversations.clone();
+        let mut current_conversation_signal = app_state.current_conversation.clone();
+        let on_new_chat = on_new_chat.clone();
+        move |_| {
+            tracing::info!("New Chat button clicked");
+            let conversation = Conversation::new(None);
+            if let Err(e) = save_conversation(&conversation) {
+                tracing::error!("Failed to save conversation: {}", e);
+                return;
+            }
+            current_conversation_signal.set(Some(conversation));
+            if let Ok(conversations) = list_conversations() {
+                conversations_signal.set(conversations);
+            }
+            on_new_chat.call(());
+        }
+    };
+    
     rsx! {
         aside {
-            class: "flex flex-col w-[260px] h-full bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] transition-colors duration-300",
+            class: "flex flex-col w-[260px] h-full bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] transition-colors duration-300 z-10",
 
             // Model Selector
             ModelPicker {}
 
             // Header: New Chat
             div {
-                class: "p-3",
+                class: "p-4",
                 button {
-                    class: "w-full flex items-center gap-3 px-3 py-3 text-sm text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-md hover:bg-[var(--bg-hover)] transition-colors duration-200 text-left shadow-sm",
+                    onclick: handle_new,
+                    class: "w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-[var(--accent-text)] bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] rounded-lg transition-all duration-200 shadow-md hover:shadow-glow active:scale-[0.98] group",
 
                     svg {
-                        width: "16",
-                        height: "16",
+                        class: "w-4 h-4 transition-transform group-hover:rotate-90",
                         view_box: "0 0 24 24",
                         fill: "none",
                         stroke: "currentColor",
-                        stroke_width: "2",
+                        stroke_width: "2.5",
                         stroke_linecap: "round",
                         stroke_linejoin: "round",
                         path { d: "M12 5v14M5 12h14" }
@@ -40,25 +64,32 @@ pub fn Sidebar() -> Element {
 
             // Footer: User / Settings
             div {
-                class: "p-3 border-t border-[var(--border-subtle)]",
+                class: "p-4 border-t border-[var(--border-subtle)] bg-[var(--bg-sidebar)]",
 
                 // Settings Button
                 button {
-                    class: "w-full flex items-center gap-3 px-3 py-3 text-sm text-[var(--text-secondary)] rounded-md hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors duration-200",
+                    onclick: on_settings_click,
+                    class: "w-full flex items-center gap-3 px-3 py-2.5 text-sm text-[var(--text-secondary)] rounded-lg hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors duration-200 group",
 
-                    svg {
-                        width: "16",
-                        height: "16",
-                        view_box: "0 0 24 24",
-                        fill: "none",
-                        stroke: "currentColor",
-                        stroke_width: "2",
-                        stroke_linecap: "round",
-                        stroke_linejoin: "round",
-                        circle { cx: "12", cy: "12", r: "3" }
-                        path { d: "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 5 9.4a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" }
+                    div {
+                        class: "p-1.5 rounded-md bg-[var(--bg-subtle)] text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)] transition-colors",
+                        svg {
+                            class: "w-4 h-4 transition-transform group-hover:rotate-45",
+                            view_box: "0 0 24 24",
+                            fill: "none",
+                            stroke: "currentColor",
+                            stroke_width: "2",
+                            stroke_linecap: "round",
+                            stroke_linejoin: "round",
+                            circle { cx: "12", cy: "12", r: "3" }
+                            path { d: "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" }
+                        }
                     }
-                    "Settings"
+                    div {
+                        class: "flex flex-col items-start",
+                        span { class: "font-medium text-[var(--text-primary)]", "Settings" }
+                        span { class: "text-xs text-[var(--text-tertiary)]", "Preferences" }
+                    }
                 }
             }
         }

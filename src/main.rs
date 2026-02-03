@@ -17,14 +17,21 @@ fn main() {
 
     info!("Starting LocaLM v{}", env!("CARGO_PKG_VERSION"));
 
+    // Initialize storage directory structure
+    if let Err(e) = localm::storage::init_storage() {
+        tracing::error!("Failed to initialize storage: {}", e);
+    }
+
     // Launch Dioxus desktop application
     dioxus::LaunchBuilder::desktop()
         .with_cfg(
-            Config::default().with_window(
-                WindowBuilder::new()
-                    .with_title("LocaLM")
-                    .with_inner_size(LogicalSize::new(1200.0, 800.0)),
-            ),
+            Config::default()
+                .with_menu(None) // Remove the default menu bar
+                .with_window(
+                    WindowBuilder::new()
+                        .with_title("LocaLM")
+                        .with_inner_size(LogicalSize::new(1200.0, 800.0)),
+                ),
         )
         .launch(App);
 }

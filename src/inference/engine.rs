@@ -20,7 +20,7 @@ use llama_cpp_2::context::LlamaContext;
 use llama_cpp_2::llama_backend::LlamaBackend;
 use llama_cpp_2::llama_batch::LlamaBatch;
 use llama_cpp_2::model::params::LlamaModelParams;
-use llama_cpp_2::model::{AddBos, LlamaModel, Special};
+use llama_cpp_2::model::{AddBos, LlamaChatMessage, LlamaModel, Special};
 use llama_cpp_2::sampling::LlamaSampler;
 use thiserror::Error;
 
@@ -444,6 +444,14 @@ fn run_generation(
     tx: &Sender<StreamToken>,
     stop_signal: &Arc<AtomicBool>,
 ) -> Result<(), String> {
+    let prompt = match build_chat_prompt(model, prompt) {
+        Ok(chat_prompt) => chat_prompt,
+        Err(error) => {
+            tracing::warn!("Chat template not applied: {error}");
+            prompt.to_string()
+        }
+    };
+
     // Create context for this generation
     let ctx_params = LlamaContextParams::default()
         .with_n_ctx(Some(NonZeroU32::new(4096).unwrap()))
@@ -455,12 +463,23 @@ fn run_generation(
 
     // Tokenize the prompt
     let tokens = model
-        .str_to_token(prompt, AddBos::Always)
+        .str_to_token(&prompt, AddBos::Always)
         .map_err(|e| format!("Failed to tokenize: {}", e))?;
 
     tracing::debug!("Tokenized prompt into {} tokens", tokens.len());
 
     run_inference(&mut ctx, model, tokens, params, tx, stop_signal)
+}
+
+fn build_chat_prompt(model: &LlamaModel, prompt: &str) -> Result<String, String> {
+    let template = model
+        .chat_template(None)
+        .map_err(|e| format!("Failed to load chat template: {e}"))?;
+    let user_message = LlamaChatMessage::new("user".to_string(), prompt.to_string())
+        .map_err(|e| format!("Failed to build chat message: {e}"))?;
+    model
+        .apply_chat_template(&template, &[user_message], true)
+        .map_err(|e| format!("Failed to apply chat template: {e}"))
 }
 /// Runs the inference loop
 fn run_inference(
@@ -507,6 +526,9 @@ fn run_inference(
 
     let mut n_decoded = prompt_tokens.len() as i32;
 
+    // Buffer for handling incomplete UTF-8 sequences
+    let mut utf8_buffer: Vec<u8> = Vec::new();
+
     // Generation loop
     for _ in 0..params.max_tokens {
         // Check stop signal
@@ -522,19 +544,61 @@ fn run_inference(
         // Check for end of generation
         if model.is_eog_token(new_token) {
             tracing::debug!("End of generation token encountered");
+            // Flush any remaining UTF-8 buffer on end of generation
+            if !utf8_buffer.is_empty() {
+                if let Ok(s) = String::from_utf8(utf8_buffer.clone()) {
+                    if !s.is_empty() {
+                        let _ = tx.send(StreamToken::Token(s));
+                    }
+                }
+                utf8_buffer.clear();
+            }
             break;
         }
 
-        // Convert token to string
-        let token_str = model
-            .token_to_str(new_token, Special::Tokenize)
-            .map_err(|e| format!("Failed to convert token: {}", e))?;
+        // Convert token to bytes instead of string
+        let token_bytes = model
+            .token_to_bytes(new_token, Special::Tokenize)
+            .map_err(|e| format!("Failed to convert token to bytes: {}", e))?;
 
-        // Send token through channel
-        if tx.send(StreamToken::Token(token_str)).is_err() {
-            // Receiver dropped, stop generation
-            tracing::debug!("Receiver dropped, stopping generation");
-            break;
+        // Accumulate bytes in the buffer
+        utf8_buffer.extend_from_slice(&token_bytes);
+
+        // Try to extract valid UTF-8 from the buffer
+        // Find the longest valid UTF-8 prefix
+        if let Ok(s) = String::from_utf8(utf8_buffer.clone()) {
+            // All accumulated bytes form valid UTF-8
+            if !s.is_empty() {
+                if tx.send(StreamToken::Token(s)).is_err() {
+                    // Receiver dropped, stop generation
+                    tracing::debug!("Receiver dropped, stopping generation");
+                    break;
+                }
+            }
+            utf8_buffer.clear();
+        } else {
+            // Invalid UTF-8. Try to find the longest valid prefix and emit it,
+            // keeping only the incomplete suffix in the buffer.
+            let mut valid_len = 0;
+            for i in (1..=utf8_buffer.len()).rev() {
+                if let Ok(s) = String::from_utf8(utf8_buffer[..i].to_vec()) {
+                    valid_len = i;
+                    if !s.is_empty() {
+                        if tx.send(StreamToken::Token(s)).is_err() {
+                            // Receiver dropped, stop generation
+                            tracing::debug!("Receiver dropped, stopping generation");
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+
+            // Keep only the incomplete suffix
+            if valid_len > 0 {
+                utf8_buffer = utf8_buffer[valid_len..].to_vec();
+            }
+            // If valid_len == 0, we keep all bytes (they're an incomplete sequence)
         }
 
         // Prepare batch for next iteration
@@ -548,6 +612,15 @@ fn run_inference(
             .map_err(|e| format!("Failed to decode: {}", e))?;
 
         n_decoded += 1;
+    }
+
+    // Flush any remaining UTF-8 buffer before completion
+    if !utf8_buffer.is_empty() {
+        if let Ok(s) = String::from_utf8(utf8_buffer) {
+            if !s.is_empty() {
+                let _ = tx.send(StreamToken::Token(s));
+            }
+        }
     }
 
     // Send done signal

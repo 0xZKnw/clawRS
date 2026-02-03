@@ -33,6 +33,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
+        tracing::info!("AppState initialized");
         Self {
             engine: Arc::new(Mutex::new(LlamaEngine::new())),
             current_conversation: Signal::new(None),

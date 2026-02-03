@@ -83,10 +83,12 @@ fn get_conversation_path(id: &str) -> Result<PathBuf, StorageError> {
 
 /// Save a conversation to disk
 pub fn save_conversation(conversation: &Conversation) -> Result<(), StorageError> {
+    let dir = get_conversations_dir()?;
+    std::fs::create_dir_all(&dir)?;
     let path = get_conversation_path(&conversation.id)?;
     let json = serde_json::to_string_pretty(conversation)?;
     fs::write(path, json)?;
-    tracing::debug!("Saved conversation: {}", conversation.id);
+    tracing::info!("Saved conversation: {}", conversation.id);
     Ok(())
 }
 

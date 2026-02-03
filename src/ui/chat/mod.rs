@@ -13,20 +13,43 @@ use std::sync::atomic::Ordering;
 use crate::app::{AppState, ModelState};
 use crate::inference::engine::GenerationParams;
 use crate::inference::streaming::StreamToken;
+use crate::storage::conversations::save_conversation;
+use crate::types::message::Message as StorageMessage;
 
 #[component]
 pub fn ChatView() -> Element {
     let app_state = use_context::<AppState>();
-    // State for messages
-    let mut messages = use_signal(|| vec![
-        Message {
-            role: MessageRole::Assistant,
-            content: "Hello! I'm LocaLM, your private AI assistant. How can I help you today?".to_string(),
-        }
-    ]);
+    
+    // State for messages - will be populated from current_conversation
+    let messages = use_signal(Vec::<Message>::new);
     
     // State for generation status
-    let mut is_generating = use_signal(|| false);
+    let is_generating = use_signal(|| false);
+    
+    // Load messages when current_conversation changes
+    {
+        let mut messages = messages.clone();
+        let current_conv = app_state.current_conversation.clone();
+        use_effect(move || {
+            let conv_read = current_conv.read();
+            if let Some(ref conv) = *conv_read {
+                if conv.messages.is_empty() {
+                    // New conversation - show greeting
+                    messages.set(vec![Message {
+                        role: MessageRole::Assistant,
+                        content: "Hello! I'm LocaLM. How can I assist you today?".to_string(),
+                    }]);
+                } else {
+                    // Load existing messages from storage
+                    let ui_messages: Vec<Message> = conv.messages.iter()
+                        .cloned()
+                        .map(|m| m.into())
+                        .collect();
+                    messages.set(ui_messages);
+                }
+            }
+        });
+    }
 
     // Handler for sending a message
     let handle_send = {
@@ -37,7 +60,7 @@ pub fn ChatView() -> Element {
             if !matches!(*app_state.model_state.read(), ModelState::Loaded(_)) {
                 messages.write().push(Message {
                     role: MessageRole::Assistant,
-                    content: "Model not loaded. Please load a model before generating responses.".to_string(),
+                    content: "Model not loaded. Please select and load a model first.".to_string(),
                 });
                 return;
             }
@@ -61,7 +84,7 @@ pub fn ChatView() -> Element {
 
             let mut messages = messages.clone();
             let mut is_generating = is_generating.clone();
-            let app_state = app_state.clone();
+            let mut app_state = app_state.clone();
 
             spawn(async move {
                 let params = GenerationParams::default();
@@ -109,13 +132,31 @@ pub fn ChatView() -> Element {
                             break;
                         }
                         Err(std::sync::mpsc::TryRecvError::Empty) => {
-                            tokio::task::yield_now().await;
+                            // Small delay to allow UI to repaint between token updates
+                            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                         }
                         Err(std::sync::mpsc::TryRecvError::Disconnected) => break,
                     }
                 }
 
                 is_generating.set(false);
+                
+                // Save messages to conversation after generation completes
+                {
+                    let msgs = messages.read();
+                    let storage_messages: Vec<StorageMessage> = msgs.iter()
+                        .cloned()
+                        .map(|m| m.into())
+                        .collect();
+                    
+                    let mut conv_write = app_state.current_conversation.write();
+                    if let Some(ref mut conv) = *conv_write {
+                        conv.messages = storage_messages;
+                        if let Err(e) = save_conversation(conv) {
+                            tracing::error!("Failed to save conversation: {}", e);
+                        }
+                    }
+                }
             });
         }
     };
@@ -133,29 +174,25 @@ pub fn ChatView() -> Element {
     rsx! {
         div { class: "flex flex-col h-full bg-[var(--bg-main)] relative",
             
-            // Header / Toolbar (Optional, can be added later)
-            // div { class: "h-12 border-b border-[var(--border-subtle)] flex items-center px-4", ... }
-
             // Messages Area
-            div { class: "flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar scroll-smooth",
-                // Message List
-                for (idx, msg) in messages.read().iter().enumerate() {
-                    MessageBubble { key: "{idx}", message: msg.clone() }
-                }
-                
-                // Typing / Generating Indicator
-                if is_generating() {
-                    div { class: "flex items-center gap-2 text-[var(--text-tertiary)] text-sm ml-4 mt-2 animate-fade-in",
-                        div { class: "w-2 h-2 bg-[var(--accent-primary)] rounded-full animate-bounce" }
-                        div { class: "w-2 h-2 bg-[var(--accent-primary)] rounded-full animate-bounce delay-75" }
-                        div { class: "w-2 h-2 bg-[var(--accent-primary)] rounded-full animate-bounce delay-150" }
-                        span { "LocaLM is thinking..." }
+            div { class: "flex-1 overflow-y-auto px-4 py-6 space-y-6 custom-scrollbar scroll-smooth",
+                div { class: "max-w-4xl mx-auto w-full flex flex-col space-y-6 pb-4",
+                    // Message List
+                    for (idx, msg) in messages.read().iter().enumerate() {
+                        MessageBubble { key: "{idx}", message: msg.clone() }
                     }
+                    
+                    // Typing / Generating Indicator
+                    if is_generating() {
+                        div { class: "flex items-center gap-2 text-[var(--text-tertiary)] text-sm ml-12 animate-fade-in",
+                            div { class: "w-1.5 h-1.5 bg-[var(--accent-primary)] rounded-full animate-bounce" }
+                            div { class: "w-1.5 h-1.5 bg-[var(--accent-primary)] rounded-full animate-bounce delay-75" }
+                            div { class: "w-1.5 h-1.5 bg-[var(--accent-primary)] rounded-full animate-bounce delay-150" }
+                        }
+                    }
+                    
+                    div { class: "h-8" } // Spacer
                 }
-                
-                // Invisible anchor for auto-scrolling
-                // In a real implementation, we'd use a use_effect to scroll this into view
-                div { class: "h-4" }
             }
 
             // Input Area
