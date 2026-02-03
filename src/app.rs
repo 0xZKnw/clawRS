@@ -2,26 +2,54 @@
 //!
 //! This module contains the main App component that serves as the root of the UI tree.
 
+use crate::inference::LlamaEngine;
+use crate::storage::conversations::Conversation;
+use crate::storage::settings::AppSettings;
+use crate::ui::Layout;
 use dioxus::prelude::*;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
-/// Root application component
+/// Represents the current state of the model
+#[derive(Clone, PartialEq, Debug)]
+pub enum ModelState {
+    NotLoaded,
+    Loading,
+    Loaded(String),
+    Error(String),
+}
+
+/// Global application state shared across components
+#[derive(Clone)]
+pub struct AppState {
+    pub engine: Arc<Mutex<LlamaEngine>>,
+    pub current_conversation: Signal<Option<Conversation>>,
+    pub conversations: Signal<Vec<Conversation>>,
+    pub settings: Signal<AppSettings>,
+    pub model_state: Signal<ModelState>,
+    pub stop_signal: Arc<AtomicBool>,
+}
+
+impl AppState {
+    pub fn new() -> Self {
+        Self {
+            engine: Arc::new(Mutex::new(LlamaEngine::new())),
+            current_conversation: Signal::new(None),
+            conversations: Signal::new(Vec::new()),
+            settings: Signal::new(AppSettings::default()),
+            model_state: Signal::new(ModelState::NotLoaded),
+            stop_signal: Arc::new(AtomicBool::new(false)),
+        }
+    }
+}
+
 #[component]
 pub fn App() -> Element {
+    let app_state = AppState::new();
+    use_context_provider(|| app_state);
+
     rsx! {
-        div {
-            style: "display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: system-ui, -apple-system, sans-serif; background-color: #1a1a2e; color: #eee;",
-            h1 {
-                style: "font-size: 2.5rem; margin-bottom: 1rem;",
-                "LocaLM"
-            }
-            p {
-                style: "color: #888; font-size: 1rem;",
-                "Local LLM Chat Application"
-            }
-            p {
-                style: "color: #666; font-size: 0.875rem; margin-top: 2rem;",
-                "v0.1.0 - Scaffolding Complete"
-            }
-        }
+        Layout {}
     }
 }

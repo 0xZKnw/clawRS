@@ -12,12 +12,18 @@ directories = "5"
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+llama-cpp-2 = { version = "=0.1.132", features = ["sampler"] }
 
 [features]
 default = []
-cuda = []
-vulkan = []
+cuda = ["llama-cpp-2/cuda"]
+vulkan = ["llama-cpp-2/vulkan"]
 
 [profile.release]
 lto = true
 strip = true
+
+[dev-dependencies]
+tempfile = "3"

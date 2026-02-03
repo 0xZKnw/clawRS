@@ -6,14 +6,7 @@ use dioxus::desktop::{Config, LogicalSize, WindowBuilder};
 use tracing::info;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-mod app;
-mod inference;
-mod storage;
-mod system;
-mod types;
-mod ui;
-
-use app::App;
+use localm::app::App;
 
 fn main() {
     // Initialize tracing subscriber for logging
