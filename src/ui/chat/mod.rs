@@ -87,7 +87,18 @@ pub fn ChatView() -> Element {
             let mut app_state = app_state.clone();
 
             spawn(async move {
-                let params = GenerationParams::default();
+                let settings = app_state.settings.read();
+                let params = GenerationParams {
+                    max_tokens: settings.max_tokens,
+                    temperature: settings.temperature,
+                    top_k: settings.top_k,
+                    top_p: settings.top_p,
+                    repeat_penalty: 1.1,
+                    seed: 0,
+                    max_context_size: settings.context_size,
+                };
+                drop(settings);
+                
                 let (rx, stop_signal) = {
                     let engine = app_state.engine.lock().await;
                     match engine.generate_stream(&prompt, params) {

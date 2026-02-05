@@ -79,17 +79,20 @@ pub struct GenerationParams {
     pub repeat_penalty: f32,
     /// Random seed for sampling (0 = random)
     pub seed: u32,
+    /// Context window size
+    pub max_context_size: u32,
 }
 
 impl Default for GenerationParams {
     fn default() -> Self {
         Self {
-            max_tokens: 512,
+            max_tokens: 65536,
             temperature: 0.7,
             top_k: 40,
             top_p: 0.95,
             repeat_penalty: 1.1,
             seed: 0,
+            max_context_size: 131072,
         }
     }
 }
@@ -453,8 +456,12 @@ fn run_generation(
     };
 
     // Create context for this generation
+    // Use context size from settings, or model's max if not specified
+    let n_ctx = std::cmp::min(params.max_context_size, model.n_ctx_train());
+    let n_ctx = std::cmp::max(n_ctx, 2048); // Minimum 2K context
+
     let ctx_params = LlamaContextParams::default()
-        .with_n_ctx(Some(NonZeroU32::new(4096).unwrap()))
+        .with_n_ctx(Some(NonZeroU32::new(n_ctx).unwrap()))
         .with_n_batch(512);
 
     let mut ctx = model
