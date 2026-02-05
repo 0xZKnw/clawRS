@@ -156,15 +156,15 @@ pub fn MessageBubble(message: Message) -> Element {
     };
 
     let bubble_class = if is_user {
-        "max-w-[80%] bg-gradient-to-br from-[#8B5CF6] to-[#6366F1] text-white rounded-2xl rounded-br-sm px-4 py-3 shadow-lg shadow-purple-500/20"
+        "max-w-[80%] bg-gradient-to-br from-[#06b6d4] to-[#3b82f6] text-white rounded-2xl rounded-br-sm px-4 py-3 shadow-lg shadow-cyan-500/20"
     } else {
-        "max-w-[80%] bg-[#1F2937] border border-gray-700/50 rounded-2xl rounded-bl-sm px-4 py-3"
+        "max-w-[80%] bg-[var(--bg-secondary)] border border-white/5 rounded-2xl rounded-bl-sm px-4 py-3 backdrop-blur-sm"
     };
 
     let avatar_class = if is_user {
-        "w-8 h-8 rounded-full bg-gradient-to-br from-[#8B5CF6] to-[#6366F1] flex items-center justify-center text-white text-xs font-medium"
+        "w-8 h-8 rounded-full bg-gradient-to-br from-[#06b6d4] to-[#3b82f6] flex items-center justify-center text-white text-xs font-medium shadow-md shadow-cyan-500/20"
     } else {
-        "w-8 h-8 rounded-full bg-[#10B981] flex items-center justify-center text-white text-xs font-medium"
+        "w-8 h-8 rounded-full bg-[#3b82f6] flex items-center justify-center text-white text-xs font-medium shadow-md shadow-blue-500/20"
     };
 
     // Parse content for AI messages only

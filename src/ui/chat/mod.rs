@@ -172,7 +172,7 @@ pub fn ChatView() -> Element {
     };
 
     rsx! {
-        div { class: "flex flex-col h-full bg-[var(--bg-main)] relative",
+        div { class: "flex flex-col h-full bg-[var(--bg-primary)] relative",
             
             // Messages Area
             div { class: "flex-1 overflow-y-auto px-4 py-6 space-y-6 custom-scrollbar scroll-smooth",

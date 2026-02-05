@@ -31,17 +31,17 @@ pub fn ChatInput(
 
     rsx! {
         div {
-            class: "w-full p-4 bg-[var(--bg-main)]",
+            class: "w-full p-4 bg-transparent", // Transparent to blend with main bg
 
             div {
-                class: "relative flex items-end gap-3 max-w-4xl mx-auto p-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-lg hover:border-[var(--border-hover)] focus-within:border-[var(--border-focus)] focus-within:ring-1 focus-within:ring-[var(--border-focus)] transition-all duration-200",
+                class: "relative flex items-end gap-3 max-w-4xl mx-auto p-2 bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg hover:border-white/20 focus-within:border-[var(--accent-primary)] focus-within:ring-1 focus-within:ring-cyan-500/20 transition-all duration-200",
 
                 // Textarea container
                 div {
                     class: "relative flex-1",
 
                     textarea {
-                        class: "w-full max-h-48 min-h-[52px] py-3 px-3 bg-transparent border-none outline-none text-[var(--text-primary)] resize-none placeholder-[var(--text-tertiary)] text-base font-sans leading-relaxed",
+                        class: "w-full max-h-48 min-h-[52px] py-3 px-3 bg-transparent border-none outline-none text-[var(--text-primary)] resize-none placeholder-[var(--text-secondary)]/50 text-base font-sans leading-relaxed",
                         placeholder: "Ask anything...",
                         value: "{text}",
                         oninput: move |evt| text.set(evt.value()),
@@ -56,7 +56,7 @@ pub fn ChatInput(
                     if is_generating {
                         button {
                             onclick: move |_| on_stop.call(()),
-                            class: "p-2.5 rounded-xl bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-error-subtle)] hover:text-[var(--text-error)] transition-colors border border-[var(--border-subtle)]",
+                            class: "p-2.5 rounded-xl bg-white/[0.05] text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-colors border border-white/10",
                             title: "Stop generating (Esc)",
                             div {
                                 class: "w-3 h-3 bg-current rounded-sm"
@@ -66,7 +66,7 @@ pub fn ChatInput(
                         button {
                             onclick: handle_send_click,
                             disabled: text().trim().is_empty(),
-                            class: "p-2.5 rounded-xl bg-[var(--accent-primary)] text-[var(--accent-text)] hover:bg-[var(--accent-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-glow active:scale-95 disabled:shadow-none",
+                            class: "p-2.5 rounded-xl bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-secondary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 active:scale-95 disabled:shadow-none",
                             title: "Send message (Enter)",
                             svg { width: "18", height: "18", view_box: "0 0 24 24", fill: "none", stroke: "currentColor", stroke_width: "2.5", stroke_linecap: "round", stroke_linejoin: "round", line { x1: "22", y1: "2", x2: "11", y2: "13" }, polygon { points: "22 2 15 22 11 13 2 9 22 2" } }
                         }

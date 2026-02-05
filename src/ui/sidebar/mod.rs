@@ -33,7 +33,7 @@ pub fn Sidebar(on_settings_click: EventHandler<MouseEvent>, on_new_chat: EventHa
     
     rsx! {
         aside {
-            class: "w-[280px] h-full flex flex-col bg-[var(--bg-sidebar)]/90 backdrop-blur-2xl backdrop-saturate-150 border-r border-[var(--border-subtle)] z-10 transition-colors duration-300",
+            class: "w-[280px] h-full flex flex-col bg-[var(--bg-secondary)]/60 backdrop-blur-2xl backdrop-saturate-150 border-r border-[var(--border-subtle)] z-10 transition-colors duration-300",
             
             // Header with model picker
             div { 
@@ -45,7 +45,7 @@ pub fn Sidebar(on_settings_click: EventHandler<MouseEvent>, on_new_chat: EventHa
                 // New Chat button
                 button {
                     onclick: handle_new,
-                    class: "w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-hover)] rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:-translate-y-0.5 transition-all duration-200 group",
+                    class: "w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] rounded-xl shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 hover:-translate-y-0.5 transition-all duration-200 group",
                     
                     svg {
                         class: "w-4 h-4 transition-transform group-hover:rotate-90",
@@ -77,7 +77,7 @@ pub fn Sidebar(on_settings_click: EventHandler<MouseEvent>, on_new_chat: EventHa
                     class: "w-full flex items-center gap-3 px-4 py-3 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-xl hover:bg-white/[0.05] transition-all duration-150 group",
                     
                     div {
-                        class: "p-1.5 rounded-md bg-[var(--bg-subtle)] text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)] transition-colors",
+                        class: "p-1.5 rounded-md bg-white/[0.05] text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)] transition-colors",
                         svg {
                             class: "w-4 h-4 transition-transform group-hover:rotate-45",
                             view_box: "0 0 24 24",

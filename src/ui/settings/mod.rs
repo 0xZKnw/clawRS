@@ -21,7 +21,7 @@ pub fn Settings() -> Element {
 
     rsx! {
         div {
-            class: "flex flex-col h-full bg-[var(--bg-main)]",
+            class: "flex flex-col h-full bg-[var(--bg-primary)]",
 
             // Header with glass effect
             div {

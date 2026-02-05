@@ -32,7 +32,7 @@ pub fn Layout() -> Element {
         // Theme wrapper
         div {
             "data-theme": "{theme_str}",
-            class: "flex h-screen w-screen bg-[var(--bg-main)] text-[var(--text-primary)] transition-colors duration-300 overflow-hidden",
+            class: "flex h-screen w-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300 overflow-hidden",
 
             // Inline CSS using include_str! macro for desktop app compatibility
             style { {include_str!("../../assets/styles.css")} }
@@ -45,7 +45,7 @@ pub fn Layout() -> Element {
 
             // Main Content Area
             main {
-                class: "flex-1 flex flex-col h-full relative min-w-0 bg-[var(--bg-main)] transition-colors duration-300",
+                class: "flex-1 flex flex-col h-full relative min-w-0 bg-[var(--bg-primary)] transition-colors duration-300",
 
                 // Main Content (ChatView, Settings, or Welcome Screen)
                 if current_view() == MainView::Settings {
@@ -83,10 +83,10 @@ pub fn Layout() -> Element {
                         div {
                             class: "mb-12 relative",
                             div { 
-                                class: "absolute inset-0 bg-[var(--accent-primary)] blur-[80px] opacity-30 animate-pulse" 
+                                class: "absolute inset-0 bg-[var(--accent-primary)] blur-[80px] opacity-20 animate-pulse" 
                             }
                             div {
-                                class: "relative w-28 h-28 bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-purple-500/30",
+                                class: "relative w-28 h-28 bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-cyan-500/30",
                                 svg { 
                                     width: "48", 
                                     height: "48", 
@@ -116,7 +116,7 @@ pub fn Layout() -> Element {
                             // New Chat card
                             button {
                                 onclick: move |_| current_view.set(MainView::Chat),
-                                class: "flex items-center gap-4 p-6 rounded-2xl bg-white/[0.03] backdrop-blur-md border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.12] hover:-translate-y-1 transition-all duration-300 group text-left",
+                                class: "flex items-center gap-4 p-6 rounded-2xl bg-white/[0.03] backdrop-blur-md border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.12] hover:-translate-y-1 transition-all duration-300 group text-left shadow-lg shadow-black/20",
                                 div {
                                     class: "p-3 bg-white/[0.05] rounded-xl text-[var(--accent-primary)] group-hover:bg-[var(--accent-primary)] group-hover:text-white transition-colors duration-300",
                                     svg { 
@@ -138,9 +138,9 @@ pub fn Layout() -> Element {
                             // Settings card
                             button {
                                 onclick: move |_| current_view.set(MainView::Settings),
-                                class: "flex items-center gap-4 p-6 rounded-2xl bg-white/[0.03] backdrop-blur-md border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.12] hover:-translate-y-1 transition-all duration-300 group text-left",
+                                class: "flex items-center gap-4 p-6 rounded-2xl bg-white/[0.03] backdrop-blur-md border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.12] hover:-translate-y-1 transition-all duration-300 group text-left shadow-lg shadow-black/20",
                                 div {
-                                    class: "p-3 bg-white/[0.05] rounded-xl text-[var(--text-secondary)] group-hover:bg-[var(--text-primary)] group-hover:text-[var(--bg-main)] transition-colors duration-300",
+                                    class: "p-3 bg-white/[0.05] rounded-xl text-[var(--text-secondary)] group-hover:bg-[var(--text-primary)] group-hover:text-[var(--bg-primary)] transition-colors duration-300",
                                     svg { 
                                         width: "24", 
                                         height: "24", 
