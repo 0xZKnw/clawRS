@@ -13,6 +13,7 @@ pub use permissions::{
     PermissionPolicy, PermissionSignals, PermissionDecision, PermissionNotification,
 };
 pub use tools::{Tool, ToolRegistry, ToolResult, ToolError};
+pub use tools::exa::{ExaSearchTool, ExaSearchConfig};
 
 /// Agent configuration
 #[derive(Clone, Debug)]

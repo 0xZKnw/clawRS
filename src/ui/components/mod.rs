@@ -4,3 +4,5 @@
 
 pub mod loading;
 pub mod monitoring;
+pub mod permission_dialog;
+pub mod tool_usage;

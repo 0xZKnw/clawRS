@@ -22,6 +22,12 @@ pub struct ToolResult {
     pub message: String,
 }
 
+impl PartialEq for ToolResult {
+    fn eq(&self, other: &Self) -> bool {
+        self.success == other.success && self.message == other.message
+    }
+}
+
 /// Tool errors
 #[derive(Debug, Error)]
 pub enum ToolError {
@@ -82,6 +88,9 @@ impl Default for ToolRegistry {
         Self::new()
     }
 }
+
+/// Exa search tool
+pub mod exa;
 
 /// Builtin tools module
 pub mod builtins {
