@@ -15,43 +15,43 @@ pub fn build_agent_system_prompt(
     plan: Option<&TaskPlan>,
 ) -> String {
     let mut prompt = String::new();
-    
+
     // Base system prompt
     if !base_prompt.trim().is_empty() {
         prompt.push_str(base_prompt);
         prompt.push_str("\n\n");
     }
-    
+
     // Agent identity and capabilities
     prompt.push_str(AGENT_IDENTITY);
     prompt.push('\n');
-    
+
     // Thinking instructions
     prompt.push_str(THINKING_INSTRUCTIONS);
     prompt.push('\n');
-    
+
     // Tool instructions
     if !tools.is_empty() {
         prompt.push_str(&build_tool_instructions_advanced(tools));
         prompt.push('\n');
     }
-    
+
     // Planning instructions
     prompt.push_str(PLANNING_INSTRUCTIONS);
     prompt.push('\n');
-    
+
     // Context injection if available
     if let Some(context) = ctx {
         prompt.push_str(&build_context_reminder(context));
         prompt.push('\n');
     }
-    
+
     // Current plan status
     if let Some(plan) = plan {
         prompt.push_str(&build_plan_reminder(plan));
         prompt.push('\n');
     }
-    
+
     prompt
 }
 
@@ -82,18 +82,36 @@ Before each important action, take time to think:
 - What information do I need?
 - What tool is most appropriate?
 - What are the potential risks?
+- Am I certain about this information or should I verify it?
 </thinking>
 
-You can use <thinking></thinking> tags to show your reasoning.
-This content won't be shown to the user but helps you reason better.
+IMPORTANT: <thinking> tags are for YOUR reasoning only. They must NEVER appear in your response to the user. Think silently, respond clearly.
+
+## NO THINKING IN OUTPUT
+- Your response to the user should NEVER contain <thinking> or similar tags
+- Keep thinking internal, only output the final answer
+- If you need to show reasoning, explain it naturally in your response
+
+## Honesty & Uncertainty
+When you don't know something or are uncertain:
+- Say "I don't know" or "I'm not certain"
+- NEVER fabricate information or make up facts
+- If you've made an error, acknowledge it and correct yourself
+- It's better to say "I need to verify this" than to guess
 
 ## Error Handling
 When a tool fails or an action doesn't work:
 - NEVER stop after a single error
-- Think in a <thinking> block about what went wrong
 - Try an alternative approach (different tool, different parameters, reformulation)
 - If after 2-3 attempts nothing works, explain the problem to the user and propose solutions
 - You are a PERSISTENT and RESOURCEFUL assistant
+
+## Self-Correction
+Before giving your final answer:
+- Review your response for potential errors
+- Check if you're making unverified claims
+- If uncertain about any fact, explicitly state the uncertainty
+- Verify critical information using tools when possible
 "#;
 
 /// Instructions for planning
@@ -114,7 +132,7 @@ pub fn build_tool_instructions_advanced(tools: &[ToolInfo]) -> String {
     if tools.is_empty() {
         return String::new();
     }
-    
+
     let mut out = String::from(
         r#"## Available Tools
 
@@ -152,12 +170,20 @@ Use this for simple, single-line queries like searches.
 3. NEVER simulate tool output with invented text
 4. NEVER say "Done" or "File created" WITHOUT receiving actual system confirmation
 5. NEVER generate code blocks that look like tool results
+6. NEVER make up facts, statistics, or claims without verification
+7. NEVER invent file contents or command outputs
+
+### CITATION REQUIREMENT:
+- When making factual claims, cite your sources using [source] notation
+- Example: "According to the documentation [file_read], the function takes..."
+- If you cannot verify a claim, state "I'm not certain" or "This needs verification"
 
 ### MANDATORY VERIFICATION:
 - After requesting a tool, you MUST WAIT for the system message containing "[TOOL_RESULT]" or actual result
 - IF you have NOT received a system message with the result → the tool was NOT EXECUTED
 - NEVER confirm success without having SEEN the actual system result
 - For file creations/writes: VERIFY with file_list or file_read afterwards to confirm
+- For web searches: Verify the information before presenting it as fact
 
 ### HOW TO KNOW IF A TOOL SUCCEEDED:
 1. You emit the tool JSON
@@ -170,6 +196,12 @@ Use this for simple, single-line queries like searches.
 - DO NOT confirm success
 - Either call the tool for real, or say you will do it
 
+### SELF-CHECK BEFORE RESPONDING:
+Before giving your final answer, ask yourself:
+- "Did I verify this information with a tool?"
+- "Am I certain about this, or am I guessing?"
+- "Should I add a caveat about uncertainty?"
+
 "#,
     );
 
@@ -178,28 +210,27 @@ Use this for simple, single-line queries like searches.
     for tool in tools {
         out.push_str(&format!("**{}**\n", tool.name));
         out.push_str(&format!("  Description: {}\n", tool.description));
-        
+
         // Add schema info
         if let Some(props) = tool.parameters_schema.get("properties") {
             out.push_str("  Parameters:\n");
             if let Some(obj) = props.as_object() {
                 for (name, schema) in obj {
-                    let type_str = schema.get("type")
-                        .and_then(|t| t.as_str())
-                        .unwrap_or("any");
-                    let desc = schema.get("description")
+                    let type_str = schema.get("type").and_then(|t| t.as_str()).unwrap_or("any");
+                    let desc = schema
+                        .get("description")
                         .and_then(|d| d.as_str())
                         .unwrap_or("");
                     out.push_str(&format!("    - {}: {} - {}\n", name, type_str, desc));
                 }
             }
         }
-        
+
         // Add example for common tools
         if let Some(example) = get_tool_example(&tool.name) {
             out.push_str(&format!("  Example: {}\n", example));
         }
-        
+
         out.push('\n');
     }
 
@@ -210,50 +241,88 @@ Use this for simple, single-line queries like searches.
 fn get_tool_example(tool_name: &str) -> Option<&'static str> {
     match tool_name {
         // Search tools
-        "web_search" => Some(r#"{"tool": "web_search", "params": {"query": "latest AI news 2024"}}"#),
-        "code_search" => Some(r#"{"tool": "code_search", "params": {"query": "React hooks tutorial"}}"#),
+        "web_search" => {
+            Some(r#"{"tool": "web_search", "params": {"query": "latest AI news 2024"}}"#)
+        }
+        "code_search" => {
+            Some(r#"{"tool": "code_search", "params": {"query": "React hooks tutorial"}}"#)
+        }
         // File read tools
-        "file_read" => Some(r#"{"tool": "file_read", "params": {"path": "src/main.rs", "start_line": 1, "end_line": 50}}"#),
-        "file_list" => Some(r#"{"tool": "file_list", "params": {"path": ".", "recursive": true, "max_depth": 2}}"#),
+        "file_read" => Some(
+            r#"{"tool": "file_read", "params": {"path": "src/main.rs", "start_line": 1, "end_line": 50}}"#,
+        ),
+        "file_list" => Some(
+            r#"{"tool": "file_list", "params": {"path": ".", "recursive": true, "max_depth": 2}}"#,
+        ),
         "file_info" => Some(r#"{"tool": "file_info", "params": {"path": "src/main.rs"}}"#),
-        "file_search" => Some(r#"{"tool": "file_search", "params": {"query": "TODO", "path": "./src", "file_pattern": "rs"}}"#),
+        "file_search" => Some(
+            r#"{"tool": "file_search", "params": {"query": "TODO", "path": "./src", "file_pattern": "rs"}}"#,
+        ),
         // File write/edit tools
-        "file_write" => Some(r#"<use_tool name="file_write">
+        "file_write" => Some(
+            r#"<use_tool name="file_write">
     <param name="path">output.txt</param>
     <param name="content">Line 1
 Line 2
 Line 3</param>
-</use_tool>"#),
-        "file_edit" => Some(r#"<use_tool name="file_edit">
+</use_tool>"#,
+        ),
+        "file_edit" => Some(
+            r#"<use_tool name="file_edit">
     <param name="path">src/main.rs</param>
     <param name="old_string">fn old_name()</param>
     <param name="new_string">fn new_name()</param>
-</use_tool>"#),
-        "file_create" => Some(r#"{"tool": "file_create", "params": {"path": "src/new_file.rs", "content": "//! New module\n"}}"#),
+</use_tool>"#,
+        ),
+        "file_create" => Some(
+            r#"{"tool": "file_create", "params": {"path": "src/new_file.rs", "content": "//! New module\n"}}"#,
+        ),
         "file_delete" => Some(r#"{"tool": "file_delete", "params": {"path": "temp_file.txt"}}"#),
-        "file_move" => Some(r#"{"tool": "file_move", "params": {"source": "old.rs", "destination": "new.rs"}}"#),
-        "file_copy" => Some(r#"{"tool": "file_copy", "params": {"source": "template.rs", "destination": "new_module.rs"}}"#),
-        "directory_create" => Some(r#"{"tool": "directory_create", "params": {"path": "src/new_module"}}"#),
+        "file_move" => Some(
+            r#"{"tool": "file_move", "params": {"source": "old.rs", "destination": "new.rs"}}"#,
+        ),
+        "file_copy" => Some(
+            r#"{"tool": "file_copy", "params": {"source": "template.rs", "destination": "new_module.rs"}}"#,
+        ),
+        "directory_create" => {
+            Some(r#"{"tool": "directory_create", "params": {"path": "src/new_module"}}"#)
+        }
         // Search tools
         "grep" => Some(r#"{"tool": "grep", "params": {"pattern": "fn main", "path": "./src"}}"#),
         "glob" => Some(r#"{"tool": "glob", "params": {"pattern": "**/*.rs"}}"#),
         // Shell tools
-        "bash" => Some(r#"{"tool": "bash", "params": {"command": "cargo build 2>&1", "timeout_secs": 120}}"#),
-        "bash_background" => Some(r#"{"tool": "bash_background", "params": {"command": "cargo watch -x run"}}"#),
+        "bash" => Some(
+            r#"{"tool": "bash", "params": {"command": "cargo build 2>&1", "timeout_secs": 120}}"#,
+        ),
+        "bash_background" => {
+            Some(r#"{"tool": "bash_background", "params": {"command": "cargo watch -x run"}}"#)
+        }
         // Git tools
         "git_status" => Some(r#"{"tool": "git_status", "params": {}}"#),
         "git_diff" => Some(r#"{"tool": "git_diff", "params": {"staged": false}}"#),
         "git_log" => Some(r#"{"tool": "git_log", "params": {"count": 10, "oneline": true}}"#),
-        "git_commit" => Some(r#"{"tool": "git_commit", "params": {"message": "feat: add new feature", "files": ["src/main.rs"]}}"#),
+        "git_commit" => Some(
+            r#"{"tool": "git_commit", "params": {"message": "feat: add new feature", "files": ["src/main.rs"]}}"#,
+        ),
         "git_branch" => Some(r#"{"tool": "git_branch", "params": {"action": "list"}}"#),
-        "git_stash" => Some(r#"{"tool": "git_stash", "params": {"action": "save", "message": "WIP"}}"#),
+        "git_stash" => {
+            Some(r#"{"tool": "git_stash", "params": {"action": "save", "message": "WIP"}}"#)
+        }
         // Web tools
-        "web_fetch" => Some(r#"{"tool": "web_fetch", "params": {"url": "https://api.example.com/data"}}"#),
-        "web_download" => Some(r#"{"tool": "web_download", "params": {"url": "https://example.com/file.zip", "path": "downloads/file.zip"}}"#),
+        "web_fetch" => {
+            Some(r#"{"tool": "web_fetch", "params": {"url": "https://api.example.com/data"}}"#)
+        }
+        "web_download" => Some(
+            r#"{"tool": "web_download", "params": {"url": "https://example.com/file.zip", "path": "downloads/file.zip"}}"#,
+        ),
         // Dev tools
         "diff" => Some(r#"{"tool": "diff", "params": {"file_a": "old.rs", "file_b": "new.rs"}}"#),
-        "find_replace" => Some(r#"{"tool": "find_replace", "params": {"search": "old_name", "replace": "new_name", "path": "./src", "file_pattern": "rs"}}"#),
-        "patch" => Some(r#"{"tool": "patch", "params": {"path": "src/main.rs", "patch": "-old line\n+new line"}}"#),
+        "find_replace" => Some(
+            r#"{"tool": "find_replace", "params": {"search": "old_name", "replace": "new_name", "path": "./src", "file_pattern": "rs"}}"#,
+        ),
+        "patch" => Some(
+            r#"{"tool": "patch", "params": {"path": "src/main.rs", "patch": "-old line\n+new line"}}"#,
+        ),
         "wc" => Some(r#"{"tool": "wc", "params": {"path": "src/main.rs"}}"#),
         // System tools
         "tree" => Some(r#"{"tool": "tree", "params": {"path": ".", "max_depth": 3}}"#),
@@ -262,18 +331,24 @@ Line 3</param>
         "process_list" => Some(r#"{"tool": "process_list", "params": {"filter": "node"}}"#),
         "environment" => Some(r#"{"tool": "environment", "params": {"name": "PATH"}}"#),
         // Thinking/planning
-        "think" => Some(r#"{"tool": "think", "params": {"thought": "I need to analyze the code first..."}}"#),
-        "todo_write" => Some(r#"{"tool": "todo_write", "params": {"todos": [{"id": "1", "content": "Analyze the code", "status": "in_progress"}]}}"#),
+        "think" => Some(
+            r#"{"tool": "think", "params": {"thought": "I need to analyze the code first..."}}"#,
+        ),
+        "todo_write" => Some(
+            r#"{"tool": "todo_write", "params": {"todos": [{"id": "1", "content": "Analyze the code", "status": "in_progress"}]}}"#,
+        ),
         // Skill tools - simple examples
         // Skill tools
-        "skill_create" => Some(r#"<use_tool name="skill_create">
+        "skill_create" => Some(
+            r#"<use_tool name="skill_create">
     <param name="name">weather-check</param>
     <param name="description">Check weather via Python</param>
     <param name="content">This skill runs a python script to check weather. No manual steps needed.</param>
     <param name="files">{
         "main.py": "import requests\nprint(requests.get('https://wttr.in/Paris?format=3').text)"
     }</param>
-</use_tool>"#),
+</use_tool>"#,
+        ),
         "skill_invoke" => Some(r#"{"tool": "skill_invoke", "params": {"name": "my-skill"}}"#),
         "skill_list" => Some(r#"{"tool": "skill_list", "params": {}}"#),
         _ => None,
@@ -283,13 +358,10 @@ Line 3</param>
 /// Build context reminder based on agent state
 fn build_context_reminder(ctx: &AgentContext) -> String {
     let mut reminder = String::from("\n## Context Reminder\n");
-    
+
     // Iteration info
-    reminder.push_str(&format!(
-        "- Current iteration: {}\n",
-        ctx.iteration
-    ));
-    
+    reminder.push_str(&format!("- Current iteration: {}\n", ctx.iteration));
+
     // Time elapsed
     let elapsed = ctx.elapsed().as_secs();
     if elapsed > 30 {
@@ -298,7 +370,7 @@ fn build_context_reminder(ctx: &AgentContext) -> String {
             elapsed
         ));
     }
-    
+
     // Recent tool usage
     if !ctx.tool_history.is_empty() {
         reminder.push_str("- Recently used tools:\n");
@@ -307,7 +379,7 @@ fn build_context_reminder(ctx: &AgentContext) -> String {
             reminder.push_str(&format!("  {} {}\n", status, entry.tool_name));
         }
     }
-    
+
     // Warnings
     if ctx.consecutive_errors > 0 {
         reminder.push_str(&format!(
@@ -315,11 +387,13 @@ fn build_context_reminder(ctx: &AgentContext) -> String {
             ctx.consecutive_errors
         ));
     }
-    
+
     if ctx.is_stuck() {
-        reminder.push_str("\n⚠️ WARNING: You seem to be repeating the same actions. Change your approach!\n");
+        reminder.push_str(
+            "\n⚠️ WARNING: You seem to be repeating the same actions. Change your approach!\n",
+        );
     }
-    
+
     reminder
 }
 
@@ -328,12 +402,16 @@ fn build_plan_reminder(plan: &TaskPlan) -> String {
     let mut reminder = String::from("\n## Current Plan\n");
     reminder.push_str(&format!("Goal: {}\n", plan.goal));
     reminder.push_str(&format!("Progress: {:.0}%\n\n", plan.progress()));
-    
+
     // Show current and next tasks
-    if let Some(current) = plan.tasks.iter().find(|t| t.status == crate::agent::planning::TaskStatus::InProgress) {
+    if let Some(current) = plan
+        .tasks
+        .iter()
+        .find(|t| t.status == crate::agent::planning::TaskStatus::InProgress)
+    {
         reminder.push_str(&format!("🔄 In progress: {}\n", current.description));
     }
-    
+
     let pending: Vec<_> = plan.pending_tasks();
     if !pending.is_empty() {
         reminder.push_str("⏳ To do:\n");
@@ -344,7 +422,7 @@ fn build_plan_reminder(plan: &TaskPlan) -> String {
             reminder.push_str(&format!("  ... and {} more\n", pending.len() - 3));
         }
     }
-    
+
     reminder
 }
 
@@ -366,7 +444,7 @@ Instructions:
         task_description,
         available_tools.join(", ")
     );
-    
+
     prompt
 }
 
@@ -442,26 +520,40 @@ The conversation context is nearly saturated. You must now create a concise summ
 **Respond ONLY with the summary, no introduction or conclusion.**"#.to_string()
 }
 
+/// Build a conversation title generation prompt
+/// This asks the LLM to generate a short, descriptive title for the conversation
+pub fn build_title_generation_prompt(
+    first_user_message: &str,
+    first_assistant_response: &str,
+) -> String {
+    format!(
+        "Generate a short title (max 60 chars) for this conversation.\n\nUser: {}\nAssistant: {}\n\nTitle:",
+        first_user_message.chars().take(200).collect::<String>(),
+        first_assistant_response
+            .chars()
+            .take(300)
+            .collect::<String>()
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
-    
+
     #[test]
     fn test_build_tool_instructions() {
-        let tools = vec![
-            ToolInfo {
-                name: "web_search".to_string(),
-                description: "Search the web".to_string(),
-                parameters_schema: json!({
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "Search query"}
-                    }
-                }),
-            }
-        ];
-        
+        let tools = vec![ToolInfo {
+            name: "web_search".to_string(),
+            description: "Search the web".to_string(),
+            parameters_schema: json!({
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search query"}
+                }
+            }),
+        }];
+
         let instructions = build_tool_instructions_advanced(&tools);
         assert!(instructions.contains("web_search"));
         assert!(instructions.contains("Search the web"));

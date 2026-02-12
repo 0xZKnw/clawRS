@@ -8,7 +8,7 @@ use crate::ui::sidebar::model_picker::ModelPicker;
 use dioxus::prelude::*;
 
 #[component]
-pub fn Sidebar(on_settings_click: EventHandler<MouseEvent>, on_new_chat: EventHandler<()>) -> Element {
+pub fn Sidebar(on_settings_click: EventHandler<MouseEvent>, on_new_chat: EventHandler<()>, on_help_click: EventHandler<MouseEvent>) -> Element {
     let app_state = use_context::<AppState>();
     let is_en = app_state.settings.read().language == "en";
     tracing::debug!("Sidebar rendered");
@@ -96,10 +96,41 @@ pub fn Sidebar(on_settings_click: EventHandler<MouseEvent>, on_new_chat: EventHa
                         }
                         span { class: "text-[11px] text-[var(--text-tertiary)]",
                             if is_en { "Preferences" } else { "Preferences" }
+                    }
+                }
+
+                // Footer: Help button
+                button {
+                    onclick: on_help_click,
+                    class: "w-full flex items-center gap-3 px-3 py-2.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-xl hover:bg-white/[0.06] transition-all group",
+                    
+                    div {
+                        class: "p-1.5 rounded-lg bg-white/[0.04] text-[var(--text-tertiary)] group-hover:text-[var(--text-primary)] transition-colors",
+                        svg {
+                            class: "w-4 h-4",
+                            view_box: "0 0 24 24",
+                            fill: "none",
+                            stroke: "currentColor",
+                            stroke_width: "1.5",
+                            stroke_linecap: "round",
+                            stroke_linejoin: "round",
+                            circle { cx: "12", cy: "12", r: "10" }
+                            path { d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" }
+                            line { x1: "12", y1: "17", x2: "12.01", y2: "17" }
+                        }
+                    }
+                    div {
+                        class: "flex flex-col items-start",
+                        span { class: "font-medium text-[var(--text-primary)] text-sm",
+                            if is_en { "Help" } else { "Aide" }
+                        }
+                        span { class: "text-[11px] text-[var(--text-tertiary)]",
+                            if is_en { "Tutorial" } else { "Tutoriel" }
                         }
                     }
                 }
             }
         }
     }
+}
 }

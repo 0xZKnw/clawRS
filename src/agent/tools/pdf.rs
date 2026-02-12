@@ -435,7 +435,7 @@ impl Tool for PdfMergeTool {
             .filter_map(|v| v.as_str().map(String::from))
             .collect();
         
-        let output_path = params["output_path"]
+        let _output_path = params["output_path"]
             .as_str()
             .ok_or_else(|| ToolError::InvalidParameters("output_path is required".into()))?;
 
@@ -454,55 +454,9 @@ impl Tool for PdfMergeTool {
             }
         }
 
-        // Load first document as base
-        let mut merged_doc = lopdf::Document::load(&input_files[0]).map_err(|e| {
-            ToolError::ExecutionFailed(format!("Erreur lecture {}: {}", input_files[0], e))
-        })?;
-
-        let total_pages = merged_doc.get_pages().len();
-
-        // Merge other documents
-        for input_file in input_files.iter().skip(1) {
-            let other_doc = lopdf::Document::load(input_file).map_err(|e| {
-                ToolError::ExecutionFailed(format!("Erreur lecture {}: {}", input_file, e))
-            })?;
-            
-            let _other_pages = other_doc.get_pages().len();
-            
-            // Note: lopdf doesn't have merge_pages built-in
-            // Return an error - users should use pdf_create instead
-            return Err(ToolError::ExecutionFailed(
-                "La fusion PDF n'est pas encore supportée. Utilisez pdf_create pour créer de nouveaux PDFs.".into()
-            ));
-        }
-
-        // Save merged document
-        let output = PathBuf::from(output_path);
-        if let Some(parent) = output.parent() {
-            if !parent.exists() {
-                std::fs::create_dir_all(parent).map_err(|e| {
-                    ToolError::ExecutionFailed(format!("Erreur création dossier: {}", e))
-                })?;
-            }
-        }
-
-        merged_doc.save(&output).map_err(|e| {
-            ToolError::ExecutionFailed(format!("Erreur sauvegarde: {}", e))
-        })?;
-
-        Ok(ToolResult {
-            success: true,
-            data: serde_json::json!({
-                "output_path": output_path,
-                "input_files": input_files,
-                "files_merged": input_files.len(),
-                "total_pages": total_pages,
-                "size_bytes": std::fs::metadata(&output).map(|m| m.len()).unwrap_or(0)
-            }),
-            message: format!(
-                "PDF fusionné: {} fichiers -> {} ({} pages)",
-                input_files.len(), output_path, total_pages
-            ),
-        })
+        // Note: lopdf doesn't have merge_pages built-in - feature not yet implemented
+        Err(ToolError::ExecutionFailed(
+            "La fusion PDF n'est pas encore supportée. Utilisez pdf_create pour créer de nouveaux PDFs.".into()
+        ))
     }
 }

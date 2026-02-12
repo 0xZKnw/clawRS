@@ -1,6 +1,6 @@
-//! LocalClaw Library
+//! ClawRS Library
 //!
-//! Core library for the LocalClaw desktop application.
+//! Core library for the ClawRS desktop application.
 
 pub mod agent;
 pub mod app;

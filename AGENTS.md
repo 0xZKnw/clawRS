@@ -1,4 +1,4 @@
-# LocalClaw Knowledge Base (AGENTS.md)
+# ClawRS Knowledge Base (AGENTS.md)
 
 ## OVERVIEW
 Native desktop application for local LLM inference and agentic workflows.
@@ -95,7 +95,7 @@ cargo test test_name                # Run specific test case
 - **DashMap Registry**: Thread-safe global tool registry.
 - **Permission Hierarchy**: Granular 6-level permission system with user approval flow.
 - **Event-Driven**: Agent emits `AgentEvent` for real-time UI updates during loop.
-- **Statistics**: 53 Rust files, ~17,162 LOC, 2 complex state machines.
+- **Statistics**: 64 Rust files, ~17k LOC, 2 complex state machines, 49 unit tests.
 - **Performance**: Dev profile uses `opt-level 2` for usable LLM speed during development.
 - **Safety**: Dedicated worker thread is a native OS thread, not a Tokio-managed task.
 - **Storage**: JSON-based. Located in `%APPDATA%` (Win), `~/Library` (macOS), or `.local/share` (Linux).
@@ -103,3 +103,4 @@ cargo test test_name                # Run specific test case
 - **Permissions**: Levels 0 (ReadOnly) through 5 (Network). Approval required by default.
 - **Iteration Limits**: Agent loop capped at 25 iterations or 5 minutes per request.
 - **Model Support**: GGUF format only via `llama.cpp` bindings.
+- **Testing**: Inline `#[cfg(test)]` modules, 49 tests across 16 modules. Uses `tempfile` for FS tests.

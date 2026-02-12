@@ -1,14 +1,16 @@
-//! UI components for LocalClaw
+//! UI components for ClawRS
 //!
 //! This module contains all user interface components built with Dioxus.
 
 pub mod chat;
 pub mod components;
+pub mod help;
 pub mod settings;
 pub mod sidebar;
 
 use crate::ui::sidebar::Sidebar;
 use crate::ui::chat::ChatView;
+use crate::ui::help::HelpView;
 use crate::ui::settings::Settings as SettingsPanel;
 use crate::ui::components::permission_dialog::PermissionDialog;
 use crate::app::{AppState, ModelState};
@@ -24,6 +26,7 @@ pub fn t<'a>(app_state: &AppState, fr: &'a str, en: &'a str) -> &'a str {
 enum MainView {
     Chat,
     Settings,
+    Help,
 }
 
 /// Compact model picker for the header bar
@@ -334,7 +337,8 @@ pub fn Layout() -> Element {
             if sidebar_visible() {
                 Sidebar {
                     on_settings_click: move |_| current_view.set(MainView::Settings),
-                    on_new_chat: move |_| current_view.set(MainView::Chat)
+                    on_new_chat: move |_| current_view.set(MainView::Chat),
+                    on_help_click: move |_| current_view.set(MainView::Help)
                 }
             }
 
@@ -452,6 +456,30 @@ pub fn Layout() -> Element {
                         }
                         SettingsPanel {}
                     }
+                } else if current_view() == MainView::Help {
+                    div {
+                        class: "flex flex-col h-full",
+                        // Back Button Header
+                        div {
+                            class: "flex-none px-6 pt-4 pb-2",
+                            button {
+                                onclick: move |_| current_view.set(MainView::Chat),
+                                class: "flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors text-sm font-medium group",
+                                svg {
+                                    class: "w-4 h-4 transition-transform group-hover:-translate-x-1",
+                                    view_box: "0 0 24 24",
+                                    fill: "none",
+                                    stroke: "currentColor",
+                                    stroke_width: "2",
+                                    stroke_linecap: "round",
+                                    stroke_linejoin: "round",
+                                    path { d: "M19 12H5M12 19l-7-7 7-7" }
+                                }
+                                "Back to Chat"
+                            }
+                        }
+                        HelpView {}
+                    }
                 } else if app_state.current_conversation.read().is_some() {
                     ChatView {}
                 } else {
@@ -508,16 +536,16 @@ fn WelcomeScreen(on_prompt_click: EventHandler<String>) -> Element {
                         class: "font-bold tracking-tight mb-2",
                         style: "font-size: 3.5rem; letter-spacing: -0.04em; line-height: 1;",
 
-                        // "Local" in primary text color
+                        // "Claw" in primary text color
                         span {
                             class: "text-[var(--text-primary)]",
                             style: "font-weight: 300;",
-                            "Local"
+                            "Claw"
                         }
-                        // "Claw" in accent color, heavier weight
+                        // "RS" in accent color, heavier weight
                         span {
                             style: "color: var(--accent-primary); font-weight: 700;",
-                            "Claw"
+                            "RS"
                         }
                     }
 

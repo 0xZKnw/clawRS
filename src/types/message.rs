@@ -40,6 +40,37 @@ impl Message {
     }
 }
 
+/// Clean thinking tags from content for display
+/// This is a safety measure to prevent thinking from appearing to users
+pub fn clean_thinking_tags(content: &str) -> String {
+    let mut result = content.to_string();
+
+    // Remove thinking tags
+    let thinking_patterns = [
+        "<think>",
+        "</thinking>",
+        "<think>",
+        "</think>",
+        "<thinking>",
+        "</thinking>",
+        "<thinking>",
+        "</think>",
+    ];
+
+    for pattern in &thinking_patterns {
+        result = result.replace(pattern, "");
+    }
+
+    // Also remove XML-style thinking
+    let xml_patterns = ["<think>", "</reflexion>", "<réflexion>", "</réflexion>"];
+
+    for pattern in &xml_patterns {
+        result = result.replace(pattern, "");
+    }
+
+    result.trim().to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

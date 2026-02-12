@@ -26,6 +26,7 @@ use crate::agent::tools::ToolResult;
 use crate::agent::prompts::build_agent_system_prompt;
 use crate::agent::prompts::build_reflection_prompt;
 use crate::agent::prompts::build_context_compression_prompt;
+use crate::agent::prompts::build_title_generation_prompt;
 use crate::app::{AppState, ModelState};
 use crate::inference::engine::GenerationParams;
 use crate::inference::streaming::StreamToken;
@@ -974,6 +975,97 @@ pub fn ChatView() -> Element {
                         .unwrap_or(false)
                     {
                         msgs.pop();
+                    }
+                }
+                
+                // Generate conversation title after first assistant response completes
+                // Only generate once (when title is still "New Conversation") and on first iteration
+                {
+                    let msgs = messages.read();
+                    let should_generate_title = {
+                        let conv_guard = app_state.current_conversation.read();
+                        if let Some(conv) = conv_guard.as_ref() {
+                            // Generate title after first response completes (any iteration > 0)
+                            agent_ctx.iteration > 0 && conv.title == "New Conversation"
+                        } else {
+                            false
+                        }
+                    };
+                    
+                    if should_generate_title {
+                        // Get first user message and first assistant response
+                        let first_user_msg = msgs.iter()
+                            .find(|m| m.role == MessageRole::User)
+                            .map(|m| m.content.clone())
+                            .unwrap_or_default();
+                        
+                        let first_assistant_msg = msgs.iter()
+                            .find(|m| m.role == MessageRole::Assistant)
+                            .map(|m| m.content.clone())
+                            .unwrap_or_default();
+                        
+                        // Only generate if we have both messages
+                        if !first_user_msg.is_empty() && !first_assistant_msg.is_empty() {
+                            let title_prompt = build_title_generation_prompt(&first_user_msg, &first_assistant_msg);
+                            
+                            // Create title generation params (shorter max_tokens for title)
+                            let title_params = GenerationParams {
+                                max_tokens: 60,
+                                temperature: 0.3,
+                                top_k: 40,
+                                top_p: 0.9,
+                                repeat_penalty: 1.1,
+                                seed: 0,
+                                max_context_size: 2048,
+                            };
+                            
+                            let title_messages = vec![
+                                StorageMessage::new(StorageRole::User, title_prompt),
+                            ];
+                            
+                            // Generate title (non-blocking for the UI)
+                            let generated_title = {
+                                let engine = app_state.engine.lock().await;
+                                if let Ok((rx, _)) = engine.generate_stream_messages(title_messages, title_params) {
+                                    let mut text = String::new();
+                                    while let Ok(token) = rx.recv() {
+                                        match token {
+                                            StreamToken::Token(t) => text.push_str(&t),
+                                            StreamToken::Done | StreamToken::Truncated { .. } => break,
+                                            StreamToken::Error(_) => break,
+                                        }
+                                    }
+                                    // Clean up the title (remove thinking tags, quotes if present, trim)
+                                    let cleaned = text
+                                        .replace("<think>", "")
+                                        .replace("</thinking>", "")
+                                        .replace("<thinking>", "")
+                                        .replace("</think>", "")
+                                        .replace("<think>", "")
+                                        .replace("```", "")
+                                        .replace("\n", " ")
+                                        .replace("  ", " ");
+                                    cleaned.trim().trim_matches('"').trim_matches('\'').to_string()
+                                } else {
+                                    String::new()
+                                }
+                            };
+                            
+                            // Update conversation title if we got a valid one
+                            if !generated_title.is_empty() {
+                                let mut conv_write = app_state.current_conversation.write();
+                                if let Some(ref mut conv) = *conv_write {
+                                    // Truncate to max 60 chars as per prompt instructions
+                                    let final_title = if generated_title.chars().count() > 60 {
+                                        generated_title.chars().take(57).collect::<String>() + "..."
+                                    } else {
+                                        generated_title
+                                    };
+                                    conv.title = final_title;
+                                    tracing::info!("Generated conversation title: {}", conv.title);
+                                }
+                            }
+                        }
                     }
                 }
                 

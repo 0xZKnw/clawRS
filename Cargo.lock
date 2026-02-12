@@ -509,6 +509,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "clawrs"
+version = "0.2.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "dashmap 6.1.0",
+ "dioxus",
+ "directories",
+ "glob",
+ "llama-cpp-2",
+ "lopdf 0.35.0",
+ "once_cell",
+ "pdf-extract",
+ "printpdf",
+ "regex",
+ "reqwest",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "cmake"
 version = "0.1.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2799,34 +2827,6 @@ dependencies = [
  "find_cuda_helper",
  "glob",
  "walkdir",
-]
-
-[[package]]
-name = "localclaw"
-version = "0.2.0"
-dependencies = [
- "async-trait",
- "chrono",
- "dashmap 6.1.0",
- "dioxus",
- "directories",
- "glob",
- "llama-cpp-2",
- "lopdf 0.35.0",
- "once_cell",
- "pdf-extract",
- "printpdf",
- "regex",
- "reqwest",
- "schemars",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]

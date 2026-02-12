@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">LocalClaw</h1>
+  <h1 align="center">ClawRS</h1>
   <p align="center">
     <strong>Your private AI, 100% local.</strong><br>
     A premium desktop application to run LLMs locally with an agentic tool system, built in Rust.
@@ -14,9 +14,9 @@
 
 ---
 
-## What is LocalClaw?
+## What is ClawRS?
 
-LocalClaw is a native desktop application that lets you run large language models **entirely on your machine** — no cloud, no API keys, no data leaving your device. It combines a modern glassmorphism UI with a powerful agentic system that can read/write files, execute commands, search the web, and much more.
+ClawRS is a native desktop application that lets you run large language models **entirely on your machine** — no cloud, no API keys, no data leaving your device. It combines a modern glassmorphism UI with a powerful agentic system that can read/write files, execute commands, search the web, and much more.
 
 Think of it as your own private Claude or ChatGPT, running offline with full access to your computer.
 
@@ -98,6 +98,44 @@ cargo build --release
 
 ---
 
+## Important Limitations
+
+ClawRS runs entirely **offline** using local models. This has important implications you should understand:
+
+### Model Size & Hardware Requirements
+
+- **VRAM/ RAM**: Most local models require 4-16GB of VRAM (GPU) or RAM (CPU). Larger models need more resources.
+- **Recommended Models**: 4-8GB models work well on most consumer hardware. 12B+ parameter models require high-end GPUs.
+- **Download Models**: Get `.gguf` files from HuggingFace (recommended: Llama 3.2, Qwen 2.5, Mistral, Phi-3)
+
+### Context Window Limits
+
+- **Limited Context**: Local models typically support 4K-32K context tokens (vs 100K+ for cloud models)
+- **Memory Usage**: Each 1K context tokens uses ~1-2MB of VRAM/RAM
+- **VRAM-Aware**: ClawRS automatically adjusts context size based on your available VRAM
+
+### Capability Differences
+
+- **Smaller Models = Less Knowledge**: Local models have less world knowledge than GPT-4/Claude
+- **No Internet Access**: Cannot browse live web (though web search tools can help)
+- **Limited Reasoning**: Complex multi-step reasoning may be less reliable than cloud models
+- **No Fine-tuned Safety**: May occasionally generate unexpected outputs
+
+### Performance Expectations
+
+- **Speed**: Depends on your hardware (GPU preferred). 10-50 tokens/sec is typical.
+- **Quality vs Cloud**: A 7B local model ≈ GPT-3.5 level. 70B local ≈ GPT-4 level (but slower).
+- **Task Suitability**: Best for coding help, file operations, local tasks. Not ideal for deep research.
+
+### Tips for Best Experience
+
+1. Use **quantized models** (Q4_K_M, Q5_K_S, Q8_0) for best speed/quality ratio
+2. Ensure **sufficient VRAM** before loading large models
+3. Keep conversations **focused** to avoid hitting context limits
+4. Use **GPT-4 or Claude** for complex reasoning, ClawRS for execution tasks
+
+---
+
 ## Architecture
 
 ```
@@ -143,7 +181,7 @@ src/
 
 ## Tools
 
-LocalClaw comes with **30+ built-in tools** the AI can use:
+ClawRS comes with **30+ built-in tools** the AI can use:
 
 | Category | Tools | Permission |
 |----------|-------|------------|
