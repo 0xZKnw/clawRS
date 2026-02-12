@@ -51,7 +51,7 @@ fn is_garbage_text(content: &str) -> bool {
     ];
     
     for pattern in garbage_patterns {
-        if lower.matches(pattern).count() > 2 {
+        if lower.matches(pattern).count() > 3 {
             tracing::warn!("Garbage detected: pattern '{}' repeated", pattern);
             return true;
         }
