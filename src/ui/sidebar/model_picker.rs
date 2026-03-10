@@ -40,6 +40,13 @@ pub fn ModelPicker() -> Element {
     let handle_load = move |_| {
         let mut app_state = app_state_for_load.clone();
         app_state.model_state.set(ModelState::Loading);
+        
+        let ws_tx = crate::server::get_shared_ws_tx();
+        let _ = ws_tx.send(crate::server::WsEvent::ModelStateChanged {
+            state: "loading".to_string(),
+            model_name: None,
+        });
+
         let path = selected_model_path_for_load
             .read()
             .clone()
@@ -50,14 +57,35 @@ pub fn ModelPicker() -> Element {
                 let mut engine = app_state.engine.lock().await;
                 if !engine.is_initialized() {
                     if let Err(e) = engine.init() {
+                        let _ = ws_tx.send(crate::server::WsEvent::ModelStateChanged {
+                            state: format!("error: {}", e),
+                            model_name: None,
+                        });
                         return app_state.model_state.set(ModelState::Error(e.to_string()));
                     }
                 }
                 engine.load_model_async(&path, gpu_layers).await
             };
             match result {
-                Ok(_info) => app_state.model_state.set(ModelState::Loaded(path)),
-                Err(e) => app_state.model_state.set(ModelState::Error(e.to_string())),
+                Ok(_info) => {
+                    app_state.model_state.set(ModelState::Loaded(path.clone()));
+                    let model_name = std::path::Path::new(&path)
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("unknown")
+                        .to_string();
+                    let _ = ws_tx.send(crate::server::WsEvent::ModelStateChanged {
+                        state: "loaded".to_string(),
+                        model_name: Some(model_name),
+                    });
+                }
+                Err(e) => {
+                    app_state.model_state.set(ModelState::Error(e.to_string()));
+                    let _ = ws_tx.send(crate::server::WsEvent::ModelStateChanged {
+                        state: format!("error: {}", e),
+                        model_name: None,
+                    });
+                }
             }
         });
     };
@@ -65,6 +93,13 @@ pub fn ModelPicker() -> Element {
     let app_state_for_unload = app_state.clone();
     let handle_unload = move |_| {
         let mut app_state = app_state_for_unload.clone();
+        
+        let ws_tx = crate::server::get_shared_ws_tx();
+        let _ = ws_tx.send(crate::server::WsEvent::ModelStateChanged {
+            state: "not_loaded".to_string(),
+            model_name: None,
+        });
+
         spawn(async move {
             let mut engine = app_state.engine.lock().await;
             engine.unload_model();

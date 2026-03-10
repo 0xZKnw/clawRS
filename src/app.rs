@@ -46,13 +46,13 @@ impl AppState {
         agent_config.disabled_mcp_servers = settings.disabled_mcp_servers.clone();
         
         Self {
-            agent: Arc::new(Agent::new(agent_config)),
-            engine: Arc::new(Mutex::new(LlamaEngine::new())),
+            agent: crate::server::get_shared_agent(),
+            engine: crate::server::get_shared_engine(),
             current_conversation: Signal::new(None),
             conversations: Signal::new(Vec::new()),
             settings: Signal::new(settings),
             model_state: Signal::new(ModelState::NotLoaded),
-            stop_signal: Arc::new(AtomicBool::new(false)),
+            stop_signal: crate::server::get_shared_stop_signal(),
             is_generating: Signal::new(false),
             active_messages: Signal::new(Vec::new()),
         }
@@ -61,8 +61,8 @@ impl AppState {
 
 #[component]
 pub fn App() -> Element {
-    let app_state = AppState::new();
-    use_context_provider(|| app_state);
+    let mut app_state = AppState::new();
+    use_context_provider(|| app_state.clone());
 
     {
         let agent = use_context::<AppState>().agent.clone();
@@ -75,6 +75,40 @@ pub fn App() -> Element {
             });
         });
     }
+
+    // Coroutine to listen for Mobile Server events and update the Desktop UI safely
+    use_coroutine(move |mut _rx: UnboundedReceiver<()>| async move {
+        // Subscribe to WS channel
+        let mut ws_rx = crate::server::get_shared_ws_tx().subscribe();
+        
+        while let Ok(event) = ws_rx.recv().await {
+            match event {
+                crate::server::WsEvent::ModelStateChanged { state, model_name } => {
+                    let new_state = match state.as_str() {
+                        "loaded" => {
+                            if let Some(name) = model_name {
+                                ModelState::Loaded(name)
+                            } else {
+                                ModelState::Loaded("Unknown".to_string())
+                            }
+                        }
+                        "loading" => ModelState::Loading,
+                        "not_loaded" => ModelState::NotLoaded,
+                        _ => {
+                            // Try to see if it's an error
+                            if state.starts_with("error") {
+                                ModelState::Error(state.clone())
+                            } else {
+                                ModelState::NotLoaded
+                            }
+                        }
+                    };
+                    app_state.model_state.set(new_state);
+                }
+                _ => {}
+            }
+        }
+    });
 
     rsx! {
         Layout {}

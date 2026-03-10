@@ -21,7 +21,7 @@ use skills::{SkillRegistry, loader::SkillLoader};
 
 pub use permissions::{
     PermissionLevel, PermissionManager, PermissionRequest, PermissionResult,
-    PermissionPolicy, PermissionSignals, PermissionDecision, PermissionNotification,
+    PermissionPolicy, PermissionDecision, PermissionNotification,
 };
 pub use tools::{Tool, ToolRegistry, ToolResult, ToolError, ToolInfo};
 pub use tools::exa::{ExaSearchTool, ExaSearchConfig, create_exa_tools};

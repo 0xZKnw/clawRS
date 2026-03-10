@@ -5,6 +5,7 @@
 pub mod agent;
 pub mod app;
 pub mod inference;
+pub mod server;
 pub mod storage;
 pub mod system;
 pub mod types;

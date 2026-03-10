@@ -2,7 +2,7 @@
 //!
 //! Displays permission requests and allows user approval/denial
 
-use crate::agent::permissions::PermissionLevel;
+use crate::agent::permissions::{PermissionLevel, PermissionEvent};
 use crate::app::AppState;
 use dioxus::prelude::*;
 
@@ -10,14 +10,35 @@ use dioxus::prelude::*;
 #[component]
 pub fn PermissionDialog() -> Element {
     let app_state = use_context::<AppState>();
-    let signals = app_state.agent.permission_manager.signals();
-    let requests = signals.pending_requests.read();
+    
+    // Initialize with current pending requests
+    let mut requests = use_signal(|| app_state.agent.permission_manager.get_pending_requests());
+    
+    // Subscribe to permission events
+    let manager = app_state.agent.permission_manager.clone();
+    use_coroutine(move |mut _rx: UnboundedReceiver<()>| {
+        let mut event_rx = manager.subscribe();
+        let mut requests_sig = requests;
+        async move {
+            loop {
+                match event_rx.recv().await {
+                    Ok(PermissionEvent::PendingRequestsChanged(new_requests)) => {
+                        requests_sig.set(new_requests);
+                    }
+                    Ok(_) => {} // Ignore DecisionMade
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                }
+            }
+        }
+    });
 
-    if requests.is_empty() {
+    let current_requests = requests.read();
+    if current_requests.is_empty() {
         return rsx! { div {} };
     }
 
-    let current_request = &requests[0];
+    let current_request = &current_requests[0];
     let request_id = current_request.id;
     let manager = app_state.agent.permission_manager.clone();
     let manager_deny = manager.clone();

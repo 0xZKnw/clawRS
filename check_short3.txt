@@ -1,0 +1,35 @@
+﻿cargo :     Checking clawrs 
+v0.2.0 (C:\Users\crist\Deskto
+p\LocalClaw)
+At line:1 char:1
++ cargo check 
+--message-format=short 2>&1 
+| Out-File -FilePath 
+check_sh ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
+    + CategoryInfo           
+   : NotSpecified: (    Che  
+  cking cl...ktop\LocalCla   
+ w):String) [], RemoteExc    
+eption
+    + FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+src\agent\tools\filesystem.rs
+:148:13: warning: unused 
+variable: `count`: help: if 
+this is intentional, prefix 
+it with an underscore: 
+`_count`
+src\ui\components\permission_
+dialog.rs:15:9: warning: 
+variable does not need to be 
+mutable
+warning: `clawrs` (lib) 
+generated 2 warnings (run 
+`cargo fix --lib -p clawrs` 
+to apply 1 suggestion)
+    Finished `dev` profile 
+[optimized + debuginfo] 
+target(s) in 2.79s

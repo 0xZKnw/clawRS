@@ -8,7 +8,6 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use chrono::{DateTime, Utc};
-use dioxus::prelude::{Signal, Writable};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
@@ -136,11 +135,11 @@ pub enum PermissionError {
     AlreadyDecided(Uuid),
 }
 
-/// Dioxus signals for UI notification.
-#[derive(Clone)]
-pub struct PermissionSignals {
-    pub pending_requests: Signal<Vec<PermissionRequest>>,
-    pub last_decision: Signal<Option<PermissionNotification>>,
+/// Events emitted by the permission manager
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum PermissionEvent {
+    PendingRequestsChanged(Vec<PermissionRequest>),
+    DecisionMade(PermissionNotification),
 }
 
 /// Permission manager for request tracking and decisions.
@@ -149,22 +148,18 @@ pub struct PermissionManager {
     approved: Arc<Mutex<HashSet<Uuid>>>,
     denied: Arc<Mutex<HashSet<Uuid>>>,
     default_level: PermissionLevel,
-    signals: PermissionSignals,
+    event_tx: tokio::sync::broadcast::Sender<PermissionEvent>,
 }
 
 impl PermissionManager {
     pub fn new(default_level: PermissionLevel) -> Self {
-        let pending = Signal::new(Vec::new());
-        let last_decision = Signal::new(None);
+        let (event_tx, _) = tokio::sync::broadcast::channel(16);
         Self {
             pending: Arc::new(Mutex::new(Vec::new())),
             approved: Arc::new(Mutex::new(HashSet::new())),
             denied: Arc::new(Mutex::new(HashSet::new())),
             default_level,
-            signals: PermissionSignals {
-                pending_requests: pending,
-                last_decision,
-            },
+            event_tx,
         }
     }
 
@@ -182,7 +177,7 @@ impl PermissionManager {
             .lock()
             .expect("pending mutex poisoned")
             .push(request);
-        self.sync_pending_signal();
+        self.emit_pending_update();
         PermissionResult::Pending
     }
 
@@ -196,7 +191,7 @@ impl PermissionManager {
             .lock()
             .expect("approved mutex poisoned")
             .insert(request_id);
-        self.sync_pending_signal();
+        self.emit_pending_update();
         self.emit_decision(request_id, PermissionDecision::Approved);
         Ok(())
     }
@@ -211,7 +206,7 @@ impl PermissionManager {
             .lock()
             .expect("denied mutex poisoned")
             .insert(request_id);
-        self.sync_pending_signal();
+        self.emit_pending_update();
         self.emit_decision(request_id, PermissionDecision::Denied);
         Ok(())
     }
@@ -243,6 +238,8 @@ impl PermissionManager {
         timeout: Duration,
     ) -> Option<PermissionDecision> {
         let start = Instant::now();
+        // Rather than simple sleep-looping, we could use the broadcast receiver event_tx.subscribe(),
+        // but sleep-loop is fine for backwards compatibility and simplicity here.
         loop {
             if let Some(decision) = self.decision_for(request_id) {
                 return Some(decision);
@@ -264,9 +261,9 @@ impl PermissionManager {
             .clone()
     }
 
-    /// Access Dioxus signals for UI notifications.
-    pub fn signals(&self) -> PermissionSignals {
-        self.signals.clone()
+    /// Subscribe to permission events
+    pub fn subscribe(&self) -> tokio::sync::broadcast::Receiver<PermissionEvent> {
+        self.event_tx.subscribe()
     }
 
     fn remove_pending(&self, request_id: Uuid) -> bool {
@@ -285,15 +282,13 @@ impl PermissionManager {
         Ok(())
     }
 
-    fn sync_pending_signal(&self) {
+    fn emit_pending_update(&self) {
         let pending = self
             .pending
             .lock()
             .expect("pending mutex poisoned")
             .clone();
-        // Clone the signal to get a mutable reference
-        let mut signal = self.signals.pending_requests.clone();
-        signal.set(pending);
+        let _ = self.event_tx.send(PermissionEvent::PendingRequestsChanged(pending));
     }
 
     fn emit_decision(&self, request_id: Uuid, decision: PermissionDecision) {
@@ -302,8 +297,6 @@ impl PermissionManager {
             decision,
             timestamp: Utc::now(),
         };
-        // Clone the signal to get a mutable reference
-        let mut signal = self.signals.last_decision.clone();
-        signal.set(Some(notification));
+        let _ = self.event_tx.send(PermissionEvent::DecisionMade(notification));
     }
 }

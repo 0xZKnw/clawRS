@@ -14,7 +14,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
-llama-cpp-2 = { version = "=0.1.132", features = ["sampler"] }
+llama-cpp-2 = { version = "=0.1.138", features = ["sampler"] }
 
 # Agent/AI capabilities
 reqwest = { version = "0.12", features = ["json", "stream"] }
@@ -29,6 +29,13 @@ regex = "1"
 lopdf = "0.35"
 printpdf = "0.7"
 pdf-extract = "0.8"
+
+# Mobile companion server
+axum = { version = "0.8", features = ["ws"] }
+tower-http = { version = "0.6", features = ["cors"] }
+rand = "0.8"
+futures-util = "0.3"
+qrcode = "0.14"
 
 [features]
 default = []

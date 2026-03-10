@@ -3,6 +3,7 @@
 pub mod appearance;
 pub mod hardware;
 pub mod inference;
+pub mod mobile;
 pub mod tools;
 pub mod skills;
 pub mod mcp;
@@ -14,6 +15,7 @@ use crate::ui::settings::inference::InferenceSettings;
 use crate::ui::settings::tools::ToolsSettings;
 use crate::ui::settings::skills::SkillsSettings;
 use crate::ui::settings::mcp::McpSettings;
+use crate::ui::settings::mobile::MobileSettings;
 use dioxus::prelude::*;
 
 #[derive(PartialEq, Clone, Copy)]
@@ -24,6 +26,7 @@ enum SettingsTab {
     Skills,
     Mcp,
     Appearance,
+    Mobile,
 }
 
 pub fn Settings() -> Element {
@@ -77,6 +80,11 @@ pub fn Settings() -> Element {
                             onclick: move |_| active_tab.set(SettingsTab::Appearance),
                             label: if is_en { "Appearance" } else { "Apparence" },
                         }
+                        TabButton {
+                            active: active_tab() == SettingsTab::Mobile,
+                            onclick: move |_| active_tab.set(SettingsTab::Mobile),
+                            label: "Mobile",
+                        }
                     }
                 }
             }
@@ -91,6 +99,7 @@ pub fn Settings() -> Element {
                     SettingsTab::Skills => rsx! { SkillsSettings {} },
                     SettingsTab::Mcp => rsx! { McpSettings {} },
                     SettingsTab::Appearance => rsx! { AppearanceSettings {} },
+                    SettingsTab::Mobile => rsx! { MobileSettings {} },
                 }
             }
         }
